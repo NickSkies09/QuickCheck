@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<!-- Firebase App (core) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<!-- Firestore SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyDk-ugdWKUSS3koeKY25dJALnMB-8_gDLY",
+    authDomain: "quickcheck-90e19.firebaseapp.com",
+    projectId: "quickcheck-90e19",
+    storageBucket: "quickcheck-90e19.firebasestorage.app",
+    messagingSenderId: "1073107125397",
+    appId: "1:1073107125397:web:cfed4408fa04c03e7cc79c"
+  };
+
+  // Initialize Firebase
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+  function loadFromFirebase() {
+    db.collection("checklists")
+      .orderBy("createdAt", "desc")
+      .limit(10)
+      .get()
+      .then((querySnapshot) => {
+        const savedList = document.getElementById("savedList");
+        savedList.innerHTML = ""; // clear previous
+
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          const entry = document.createElement("div");
+          entry.className = "saved-entry";
+          entry.innerHTML = `<strong>${data.title}</strong> (${data.category})`;
+
+          entry.onclick = () => {
+            document.getElementById('checklistTitle').value = data.title;
+            document.getElementById('category').value = data.category;
+            checklist.innerHTML = ""; // clear current list
+
+            data.items.forEach(item => {
+              createItem(item.text, item.checked);
+            });
+
+            applyCategoryStyle();
+            alert(`Loaded: ${data.title}`);
+          };
+
+          savedList.appendChild(entry);
+        });
+      })
+      .catch((error) => {
+        alert("Error loading checklists: " + error.message);
+      });
+  }
+</script>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>QuickCheck</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <header>
+      <img src="/Images/quickcheck-logo.png " alt="QuickCheck Logo" class="logo" />
+      <div class="controls">
+        <button id="downloadBtn" title="Download PDF">⬇️</button>
+         <button id="saveBtn" onclick="saveToFirebase()" title="Save to Firebase">💾</button>
+         <button onclick="loadFromFirebase()" title="Load Saved">📂</button>
+      </div>
+    </header>
+    
+<!-- Title Input -->
+<div id="titleContainer">
+  <input type="text" id="checklistTitle" placeholder="Enter checklist title..." />
+</div>
+
+    <!-- Category Selection -->
+    <div id="categoryBar">
+      <label for="category">Category:</label>
+      <select id="category">
+        <option value="travel">Travel</option>
+        <option value="work">Task</option>
+        <option value="groceries">Groceries</option>
+      </select>
+    </div>
+
+    <!-- Checklist -->
+    <div id="savedContainer">
+      <h2>📂 Saved Checklists</h2>
+      <div id="savedList"></div>
+    </div>
+
+    <div class="card" id="checklistContainer">
+      <div id="checklist"></div>
+      <div id="addContainer">
+        <button id="addBtn" title="Add Item">➕ Add Item</button>
+      </div>
+    </div>
+  </div>
+  <!-- Dark Mode Toggle -->
+  <div id="darkModeToggle" title="Toggle dark mode">🌓</div>
+
+  <!-- Scripts -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script>
+    const checklist = document.getElementById('checklist');
+    const addBtn = document.getElementById('addBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const category = document.getElementById('category');
+    const checklistContainer = document.getElementById('checklistContainer');
+
+    function applyCategoryStyle() {
+      checklistContainer.className = 'card ' + category.value;
+    }
+
+    category.onchange = applyCategoryStyle;
+
+    function createItem(text = '', checked = false) {
+  const div = document.createElement('div');
+  div.className = 'item';
+
+  const checkbox = document.createElement('input');
+  checkbox.type = 'checkbox';
+  checkbox.checked = checked;
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = text;
+  input.placeholder = 'Checklist item...';
+
+  const removeBtn = document.createElement('button');
+  removeBtn.textContent = '❌';
+  removeBtn.className = 'remove-btn';
+  removeBtn.onclick = () => div.remove();
+
+  div.appendChild(checkbox);
+  div.appendChild(input);
+  div.appendChild(removeBtn);
+
+  checklist.appendChild(div);
+  div.classList.add('animated');
+}
+
+    // Initial setup
+    applyCategoryStyle();
+    createItem();
+
+    addBtn.onclick = () => createItem();
+
+    downloadBtn.onclick = () => {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  const title = document.getElementById('checklistTitle').value || 'Untitled Checklist';
+  const categoryText = category.options[category.selectedIndex].text || 'Uncategorized';
+  const items = document.querySelectorAll('.item');
+
+  let y = 20;
+
+  // Add Title
+  doc.setFontSize(18);
+  doc.setTextColor(0);
+  doc.text(title, 10, y);
+  y += 10;
+
+  // Add Category
+  doc.setFontSize(14);
+  doc.setTextColor(100);
+  doc.text("Category: " + categoryText, 10, y);
+  y += 10;
+
+  // Checklist Items
+  doc.setFontSize(12);
+  doc.setTextColor(0);
+  items.forEach((item) => {
+    const text = item.querySelector('input[type="text"]').value;
+    const checked = item.querySelector('input[type="checkbox"]').checked;
+    if (text.trim() !== "") {
+      doc.text(`${checked ? '[x]' : '[ ]'} ${text}`, 10, y);
+      y += 10;
+    }
+  });
+
+  doc.save("checklist.pdf");
+};
+
+    // Dark mode toggle
+    const toggle = document.getElementById('darkModeToggle');
+    toggle.onclick = () => document.body.classList.toggle('dark');
+  </script>
+</body>
+</html>
+
+<script>
+  function saveToFirebase() {
+    const title = document.getElementById('checklistTitle').value;
+    const category = document.getElementById('category').value;
+    const items = Array.from(document.querySelectorAll('.item')).map(item => ({
+      text: item.querySelector('input[type="text"]').value,
+      checked: item.querySelector('input[type="checkbox"]').checked
+    }));
+
+    if (!title) {
+      alert("Please enter a checklist title.");
+      return;
+    }
+
+    db.collection("checklists").add({
+      title,
+      category,
+      items,
+      createdAt: new Date()
+    })
+    .then(() => alert("Checklist saved to Firebase!"))
+    .catch(err => alert("Error saving checklist: " + err));
+  }
+</script>
